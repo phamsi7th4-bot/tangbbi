@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gửi HKL nhé ♥</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background: #000;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            perspective: 700px; /* Tiêu cự camera 3D */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            cursor: grab;
+        }
+        body:active { cursor: grabbing; }
+
+        /* ================= 1. MÀN HÌNH ĐĂNG NHẬP ================= */
+        #loginScreen {
+            position: fixed;
+            width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            z-index: 100;
+            background: url('anhnen.jpg') no-repeat center center fixed;
+            background-size: cover;
+            transition: opacity 1s ease, visibility 1s ease;
+        }
+        .intro-avatar {
+            position: absolute; width: 180px; height: 180px;
+            border-radius: 50%; border: 5px solid white;
+            box-shadow: 0 10px 30px rgba(255, 77, 109, 0.5); object-fit: cover;
+            z-index: 120;
+            animation: introFlyAndSpin 4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+        @keyframes introFlyAndSpin {
+            0% { transform: scale(0) rotate(0deg); opacity: 0; }
+            50% { transform: scale(1.1) rotate(360deg); opacity: 1; }
+            100% { transform: scale(1) rotate(360deg); opacity: 1; }
+        }
+        .login-card {
+            background: rgba(255, 255, 255, 0.94);
+            padding: 30px; border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            text-align: center; max-width: 480px; width: 90%;
+            opacity: 0; transform: scale(0.8) translateY(30px);
+            pointer-events: none; 
+            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            margin-top: 240px; z-index: 130;
+        }
+        .login-card.show { opacity: 1; transform: scale(1) translateY(0); pointer-events: auto; }
+        .text-header { color: #ff4d6d; font-size: 15px; font-weight: bold; margin-bottom: 20px; line-height: 1.6; }
+        .login-card input { width: 100%; padding: 12px; border: 2px solid #ffb3c6; border-radius: 12px; outline: none; font-size: 16px; text-align: center; margin-bottom: 15px; }
+        .login-card button { background: #ff4d6d; color: white; border: none; padding: 12px 30px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .login-card button:hover { background: #ff758f; transform: scale(1.05); }
+        .error-hint { color: #d90429; font-weight: bold; font-size: 14px; margin-top: 12px; display: none; }
+
+        .intro-heart {
+            position: absolute; color: #ff4d6d; pointer-events: none; z-index: 110;
+            animation: heartFall linear forwards;
+        }
+        @keyframes heartFall {
+            0% { transform: translateY(-10vh) scale(0.5); opacity: 0; }
+            10% { opacity: 0.8; }
+            100% { transform: translateY(105vh) scale(1.2); opacity: 0; }
+        }
+
+        /* ================= 2. MAIN SCREEN: CĂN PHÒNG 3D HOÀN MỸ ================= */
+        #main3DScreen {
+            position: absolute;
+            width: 100%; height: 100%;
+            display: none;
+            transform-style: preserve-3d;
+        }
+
+        .galaxy-wrapper {
+            position: absolute;
+            width: 100%; height: 100%;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* Tường căn phòng 3D khép kín vây quanh */
+        .skybox-room-3d {
+            position: absolute;
+            width: 2600px; height: 2600px;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            transform-style: preserve-3d;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .skybox-face {
+            position: absolute;
+            width: 2600px; height: 2600px;
+            background: url('anhnen.jpg') no-repeat center center;
+            background-size: cover;
+            opacity: 0.45;
+        }
+        .face-front  { transform: translateZ(-1300px); }
+        .face-back   { transform: rotateY(180deg) translateZ(-1300px); }
+        .face-left   { transform: rotateY(90deg) translateZ(-1300px); }
+        .face-right  { transform: rotateY(-90deg) translateZ(-1300px); }
+        .face-top    { transform: rotateX(90deg) translateZ(-1300px); }
+        .face-bottom { transform: rotateX(-90deg) translateZ(-1300px); }
+
+        /* Sân khấu chứa tất cả vật thể */
+        .stage-3d {
+            position: absolute;
+            width: 100%; height: 100%;
+            transform-style: preserve-3d;
+            z-index: 10;
+        }
+
+        /* Thẻ bọc để ảnh trôi dập dềnh */
+        .image-container-float {
+            position: absolute; top: 50%; left: 50%;
+            transform-style: preserve-3d;
+            animation: floatingUpAndDown var(--float-dur) ease-in-out infinite alternate;
+            animation-delay: var(--float-delay);
+        }
+
+        /* Định dạng ảnh nhỏ kỷ niệm */
+        .image-3d-card {
+            width: 130px; height: auto;
+            border-radius: 12px; border: 4px solid white;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+            cursor: pointer; transform-style: preserve-3d;
+            transition: border-color 0.3s, box-shadow 0.3s, transform 0.6s;
+            animation: popAndSpin 3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        .image-3d-card:hover { border-color: #ff4d6d; box-shadow: 0 0 25px rgba(255, 77, 109, 0.9); }
+        .image-3d-card.center-pivot { border-color: #ff4d6d; box-shadow: 0 0 30px rgba(255, 77, 109, 0.8), 0 0 10px white; }
+        .image-3d-card.pivot-target { border-color: #ffb3c6; box-shadow: 0 0 30px #ff4d6d, 0 0 10px white; }
+
+        @keyframes floatingUpAndDown {
+            0% { transform: translate(-50%, -50%) var(--spatial-pos) translateY(-15px) rotateX(-2deg) rotateY(2deg); }
+            100% { transform: translate(-50%, -50%) var(--spatial-pos) translateY(15px) rotateX(2deg) rotateY(-2deg); }
+        }
+
+        @keyframes popAndSpin {
+            0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        /* 📝 THUẬT TOÁN ĐỊNH DẠNG CHỮ BAY BỔNG DI CHUYỂN RANDOM 📝 */
+        .floating-text-item {
+            position: absolute; top: 50%; left: 50%;
+            white-space: nowrap; color: #ff4d6d; font-weight: bold;
+            text-shadow: 0 0 15px rgba(255, 77, 109, 0.8);
+            transform-style: preserve-3d; pointer-events: none;
+            font-size: 18px; display: flex; align-items: center; gap: 5px;
+            /* Chạy hiệu ứng di chuyển tuần hoàn liên tục không ngừng */
+            animation: textRandomMoving var(--move-dur) ease-in-out infinite alternate;
+        }
+
+        @keyframes textRandomMoving {
+            0% {
+                transform: translate(-50%, -50%) translate3d(var(--start-x), var(--start-y), var(--start-z)) rotateY(0deg);
+            }
+            100% {
+                /* Di chuyển mượt mà tới tọa độ đích ngẫu nhiên khác và hơi lắc nhẹ góc */
+                transform: translate(-50%, -50%) translate3d(var(--end-x), var(--end-y), var(--end-z)) rotateY(10deg);
+            }
+        }
+
+        /* Định dạng tim nhỏ lơ lửng */
+        .floating-heart-item {
+            position: absolute; top: 50%; left: 50%;
+            transform-style: preserve-3d; pointer-events: none;
+            font-size: 24px;
+        }
+
+        /* Định dạng gấu bông bay lên */
+        .bear-3d-fly {
+            position: absolute; top: 50%; left: 50%;
+            font-size: var(--bear-size);
+            transform-style: preserve-3d; pointer-events: none;
+            z-index: 8;
+            animation: bearFlyingUp var(--bear-dur) linear infinite;
+        }
+        @keyframes bearFlyingUp {
+            0% { transform: translate(-50%, -50%) translate3d(var(--bear-x), 800px, var(--bear-z)) rotateX(0deg) rotateY(0deg); opacity: 0; }
+            10% { opacity: 0.8; }
+            90% { opacity: 0.8; }
+            100% { transform: translate(-50%, -50%) translate3d(var(--bear-x), -800px, var(--bear-z)) rotateX(360deg) rotateY(180deg); opacity: 0; }
+        }
+
+        /* ================= 3. HẠ MÀN KẾT THÚC ================= */
+        #finalOverlay {
+            position: fixed; top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: rgba(5, 5, 10, 0.96);
+            z-index: 200; display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 1s ease;
+        }
+        #finalOverlay.active { opacity: 1; pointer-events: auto; }
+        #finalOverlay img {
+            max-width: 85%; max-height: 85%;
+            border-radius: 20px; border: 6px solid white;
+            box-shadow: 0 0 50px rgba(255, 255, 255, 0.4);
+            transform: scale(0.5); transition: transform 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #finalOverlay.active img { transform: scale(1); }
+    </style>
+</head>
+<body>
+
+    <audio id="bgMusic" src="1.mp3" loop></audio>
+
+    <div id="loginScreen">
+        <img src="nguofei.jpg" alt="Mở đầu" class="intro-avatar" id="introImg">
+        <div class="login-card" id="loginCard">
+            <div class="text-header">ngày đầu tiên chúng mình gặp nhau là ngày nào nhỉ bbi</div>
+            <input type="password" id="passwordInput" placeholder="Nhập mật khẩu (4 chữ số)...">
+            <button onclick="verifyPassword()">Xác nhận ♥</button>
+            <p class="error-hint" id="errorHint">cố gắng thử lại đi bbi gợi ý nhé 4 chữ số hoi</p>
+        </div>
+    </div>
+
+    <div id="main3DScreen">
+        <div class="galaxy-wrapper" id="galaxyWrapper">
+            <div class="skybox-room-3d">
+                <div class="skybox-face face-front"></div>
+                <div class="skybox-face face-back"></div>
+                <div class="skybox-face face-left"></div>
+                <div class="skybox-face face-right"></div>
+                <div class="skybox-face face-top"></div>
+                <div class="skybox-face face-bottom"></div>
+            </div>
+            <div class="stage-3d" id="stage3D"></div>
+        </div>
+    </div>
+
+    <div id="finalOverlay">
+        <img src="a1.jpg" alt="Kết thúc">
+    </div>
+
+    <script>
+        const CORRECT_PASSWORD = "0112";
+        
+        const loginScreen = document.getElementById("loginScreen");
+        const loginCard = document.getElementById("loginCard");
+        const main3DScreen = document.getElementById("main3DScreen");
+        const galaxyWrapper = document.getElementById("galaxyWrapper");
+        const stage = document.getElementById("stage3D");
+        const bgMusic = document.getElementById("bgMusic");
+        const finalOverlay = document.getElementById("finalOverlay");
+
+        let introHeartInterval = setInterval(createIntroHeart, 50);
+        setTimeout(() => { loginCard.classList.add("show"); }, 4200);
+
+        function createIntroHeart() {
+            const heart = document.createElement("div");
+            heart.classList.add("intro-heart");
+            heart.innerText = ["❤️", "💖", "💝", "💕", "💘"][Math.floor(Math.random() * 5)];
+            heart.style.left = Math.random() * 100 + "vw";
+            heart.style.fontSize = Math.random() * 15 + 15 + "px";
+            const duration = Math.random() * 3 + 3;
+            heart.style.animationDuration = duration + "s";
+            loginScreen.appendChild(heart);
+            setTimeout(() => heart.remove(), duration * 1000);
+        }
+
+        function verifyPassword() {
+            const input = document.getElementById("passwordInput").value;
+            const errorHint = document.getElementById("errorHint");
+            if (input === CORRECT_PASSWORD) {
+                bgMusic.play().catch(err => { console.log("Lỗi nhạc: ", err); });
+
+                clearInterval(introHeartInterval);
+                loginScreen.style.opacity = "0";
+                setTimeout(() => {
+                    loginScreen.style.display = "none";
+                    main3DScreen.style.display = "block";
+                    initUniverseRoom3D(); 
+                }, 1000);
+            } else {
+                errorHint.style.display = "block";
+                loginCard.style.transform = "scale(1) translateX(10px)";
+                setTimeout(() => loginCard.style.transform = "scale(1) translateX(-10px)", 100);
+                setTimeout(() => loginCard.style.transform = "scale(1) translateX(0)", 200);
+            }
+        }
+
+        // --- KHỞI TẠO KHÔNG GIAN CĂN PHÒNG HOÀN MỸ ---
+        const totalImages = 16;
+        let activePivot = { x: 0, y: 0, z: 0 };
+        let currentRotation = { x: -5, y: 0 };
+        let isDragging = false;
+        let prevMousePos = { x: 0, y: 0 };
+        let exploreClicks = 0;
+
+        function initUniverseRoom3D() {
+            // 1. Đặt bức ảnh trung tâm a1.jpg nằm chính giữa phòng
+            spawnFloatingImageCard(1, 0, 0, 0, true);
+
+            // 2. Rải các bức ảnh kỷ niệm từ a2 đến a16 lơ lửng dập dềnh bồng bềnh
+            for (let i = 2; i <= 46; i++) {
+                const imgNumber = ((i - 2) % (totalImages - 1)) + 2;
+                const x = (Math.random() - 0.5) * 1100;
+                const y = (Math.random() - 0.5) * 800;
+                const z = (Math.random() - 0.5) * 800;
+                spawnFloatingImageCard(imgNumber, x, y, z, false);
+            }
+
+            // 3. THUẬT TOÁN KÍCH HOẠT: Tạo ra 30 dòng chữ "I lớp diuuuuu bbi" BAY BỔNG RANDOM
+            for (let i = 0; i < 30; i++) { spawnRandomMovingText3D(); }
+
+            // 4. Rải rất nhiều trái tim nhỏ lơ lửng vây quanh
+            for (let i = 0; i < 50; i++) { spawnFloatingHeart3D(); }
+
+            // 5. Sinh gấu bông bay liên tục từ dưới đáy lên trần phòng
+            for (let i = 0; i < 25; i++) {
+                setTimeout(spawnFlyingBear3D, Math.random() * 5000);
+            }
+
+            initGalaxyControls();
+        }
+
+        function spawnFloatingImageCard(imgNumber, x, y, z, isCenter) {
+            const wrapper = document.createElement("div");
+            wrapper.classList.add("image-container-float");
+
+            const img = document.createElement("img");
+            img.classList.add("image-3d-card");
+            img.src = `a${imgNumber}.jpg`;
+            if (isCenter) img.classList.add("center-pivot");
+
+            wrapper.style.setProperty('--spatial-pos', `translate3d(${x}px, ${y}px, ${z}px)`);
+            wrapper.style.setProperty('--float-dur', (Math.random() * 2 + 3) + "s");
+            wrapper.style.setProperty('--float-delay', -(Math.random() * 4) + "s"); 
+
+            img.dataset.x = x; img.dataset.y = y; img.dataset.z = z;
+            
+            wrapper.appendChild(img);
+            stage.appendChild(wrapper);
+
+            img.addEventListener('click', (e) => {
+                e.stopPropagation();
+                exploreClicks++;
+
+                document.querySelectorAll('.image-3d-card').forEach(c => c.classList.remove('pivot-target'));
+                img.classList.add('pivot-target');
+
+                activePivot.x = parseFloat(img.dataset.x);
+                activePivot.y = parseFloat(img.dataset.y);
+                activePivot.z = parseFloat(img.dataset.z);
+
+                updateGalaxyTransform();
+
+                if (exploreClicks >= 4) {
+                    setTimeout(() => { finalOverlay.classList.add("active"); }, 1200);
+                }
+            });
+        }
+
+        // 🌟 THUẬT TOÁN TẠO CHỮ DI CHUYỂN RANDOM BẤT ĐỊNH 🌟
+        function spawnRandomMovingText3D() {
+            const txt = document.createElement("div");
+            txt.classList.add("floating-text-item");
+            txt.innerHTML = `I lớp diuuuuu bbi ❤️`;
+            
+            // Random tọa độ điểm xuất phát (0%) trong phòng
+            const sX = (Math.random() - 0.5) * 1100 + "px";
+            const sY = (Math.random() - 0.5) * 800 + "px";
+            const sZ = (Math.random() - 0.5) * 900 + "px";
+
+            // Random tọa độ điểm đích đến (100%) hoàn toàn khác biệt để tạo độ trượt bay bổng rộng rãi
+            const eX = (Math.random() - 0.5) * 1100 + "px";
+            const eY = (Math.random() - 0.5) * 800 + "px";
+            const eZ = (Math.random() - 0.5) * 900 + "px";
+
+            // Random thời gian di chuyển qua lại (từ 8 giây đến 14 giây) giúp chữ bay khoan thai, mượt mà
+            const duration = Math.random() * 6 + 8 + "s";
+
+            // Nạp các biến tọa độ ngẫu nhiên này vào CSS Keyframes thông qua Property
+            txt.style.setProperty('--start-x', sX); txt.style.setProperty('--start-y', sY); txt.style.setProperty('--start-z', sZ);
+            txt.style.setProperty('--end-x', eX); txt.style.setProperty('--end-y', eY); txt.style.setProperty('--end-z', eZ);
+            txt.style.setProperty('--move-dur', duration);
+
+            // Random kích thước chữ gốc to nhỏ tạo chiều sâu xa gần sinh động
+            txt.style.fontSize = Math.random() * 6 + 15 + "px";
+
+            stage.appendChild(txt);
+        }
+
+        function spawnFloatingHeart3D() {
+            const heart = document.createElement("div");
+            heart.classList.add("floating-heart-item");
+            heart.innerText = ["❤️", "💖", "💝", "💕", "💘"][Math.floor(Math.random() * 5)];
+            const x = (Math.random() - 0.5) * 1200;
+            const y = (Math.random() - 0.5) * 850;
+            const z = (Math.random() - 0.5) * 1000;
+            heart.style.transform = `translate(-50%, -50%) translate3d(${x}px, ${y}px, ${z}px) scale(${Math.random() * 0.4 + 0.7})`;
+            stage.appendChild(heart);
+        }
+
+        function spawnFlyingBear3D() {
+            const bear = document.createElement("div");
+            bear.classList.add("bear-3d-fly");
+            bear.innerText = "🧸";
+
+            const xPos = (Math.random() - 0.5) * 1300 + "px";
+            const zPos = (Math.random() - 0.5) * 1100 + "px";
+            const size = Math.random() * 25 + 20 + "px";
+            const duration = Math.random() * 4 + 6 + "s";
+
+            bear.style.setProperty('--bear-x', xPos);
+            bear.style.setProperty('--bear-z', zPos);
+            bear.style.setProperty('--bear-size', size);
+            bear.style.setProperty('--bear-dur', duration);
+
+            stage.appendChild(bear);
+        }
+
+        function updateGalaxyTransform() {
+            galaxyWrapper.style.transform = `
+                translate3d(${-activePivot.x}px, ${-activePivot.y}px, ${-activePivot.z}px)
+                rotateX(${currentRotation.x}deg) 
+                rotateY(${currentRotation.y}deg)
+                translate3d(${activePivot.x}px, ${activePivot.y}px, ${activePivot.z}px)
+            `;
+        }
+
+        function initGalaxyControls() {
+            const startDrag = (x, y) => { isDragging = true; prevMousePos = { x, y }; document.body.style.cursor = "grabbing"; };
+            const doDrag = (x, y) => {
+                if (!isDragging) return;
+                const deltaX = x - prevMousePos.x;
+                const deltaY = y - prevMousePos.y;
+
+                currentRotation.y += deltaX * 0.15;
+                currentRotation.x -= deltaY * 0.18;
+                currentRotation.x = Math.max(-60, Math.min(60, currentRotation.x)); 
+
+                updateGalaxyTransform();
+                prevMousePos = { x, y };
+            };
+            const endDrag = () => { isDragging = false; document.body.style.cursor = "grab"; };
+
+            window.addEventListener('mousedown', (e) => startDrag(e.clientX, e.clientY));
+            window.addEventListener('mousemove', (e) => doDrag(e.clientX, e.clientY));
+            window.addEventListener('mouseup', endDrag);
+
+            window.addEventListener('touchstart', (e) => startDrag(e.touches[0].clientX, e.touches[0].clientY));
+            window.addEventListener('touchmove', (e) => doDrag(e.touches[0].clientX, e.touches[0].clientY));
+            window.addEventListener('touchend', endDrag);
+        }
+
+        document.getElementById("passwordInput").addEventListener("keyup", function(event) {
+            if (event.key === "Enter") verifyPassword();
+        });
+    </script>
+</body>
+</html>
